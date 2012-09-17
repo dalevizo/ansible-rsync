@@ -34,7 +34,8 @@ class ActionModule(object):
             return self.rsync_path(path)
 
     def rsync_path(self, path):
-		return os.path.relpath(os.path.expanduser(path), os.path.expanduser('~'))
+        return os.path.relpath(os.path.expanduser(path),
+                               os.path.expanduser('~'))
 
     def run(
         self,
@@ -67,15 +68,15 @@ class ActionModule(object):
             source = self._process_origin(delegate, source)
             dest = self._process_origin(inv_hostname, dest)
         else:
-			source = self.rsync_path(source)
-			dest = self.rsync_path(dest)
+            source = self.rsync_path(source)
+            dest = self.rsync_path(dest)
 
         options['src'] = source
         options['dest'] = dest
         try:
-     		del options['mode']
+            del options['mode']
         except KeyError:
-			pass
+            pass
 
         # run the rsync module
 

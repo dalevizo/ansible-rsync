@@ -18,7 +18,7 @@
 
 import subprocess
 
-def menu():
+def main():
     module = AnsibleModule(
         argument_spec = dict(
             src=dict(required=True),
@@ -34,7 +34,7 @@ def menu():
     source = module.params['src']
     dest = module.params['dest']
     verbosity = module.params['verbosity']
-    temp = module.params['temp_dir']
+    temp = module.params['tmp_dir']
     delete = module.params['delete']
     private_key = module.params['private_key']
     rsync_path = module.params['rsync_path']
@@ -44,12 +44,12 @@ def menu():
             'A private key is required for remote connections.')
     cmd = 'rsync --archive --delay-updates --compress' # rsync param eventually 
     if verbosity:
-        cmd = '%s -%s' % (cmd, 'v' * verbosity)
+        cmd = '%s -%s' % (cmd, ('v' * int(verbosity)))
     else:
         cmd = cmd + ' --quiet'
     if temp:
         cmd = cmd + ' --temp-dir ' + temp
-    if delete:
+    if module.boolean(delete):
         cmd = cmd + ' --delete-after'
     if private_key:
         cmd = cmd + " --rsh '%s -i %s'" % ('ssh', private_key) # need ssh param
@@ -57,13 +57,14 @@ def menu():
         cmd = cmd + ' --rsync-path ' + rsync_path
         
     cmd = ' '.join([cmd, source, dest])
+    cmdstr = cmd
     cmd = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
     (out, err) = cmd.communicate()
     if cmd.returncode:
-        return module.fail_json(msg=err, cmd.returncode)
+        return module.fail_json(msg=err, rc=cmd.returncode, cmd=cmdstr)
     else:
-        return module.exit_json(changed=True, msg=out, rc=cmd.returncode)
+        return module.exit_json(changed=True, msg=out, rc=cmd.returncode, cmd=cmdstr)
 
 
 # include magic from lib/ansible/module_common.py

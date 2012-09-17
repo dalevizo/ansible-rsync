@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 
+import os.path
+
 from ansible import utils
 from ansible.runner.return_data import ReturnData
 
@@ -26,10 +28,13 @@ class ActionModule(object):
         self.runner = runner
 
     def _process_origin(self, host, path):
-        if host in ['127.0.0.1', 'localhost']:
-            return utils.path_dwim(self.runner.basedir, path)
-        else:
+        if not host in ['127.0.0.1', 'localhost']:
             return '%s@%s:%s' % (self.runner.remote_user, host, path)
+        else:
+            return self.rsync_path(path)
+
+    def rsync_path(self, path):
+		return os.path.relpath(os.path.expanduser(path), os.path.expanduser('~'))
 
     def run(
         self,
@@ -41,8 +46,8 @@ class ActionModule(object):
         ''' generates params and passes them on to the rsync module '''
 
         options = utils.parse_kv(self.runner.module_args)
-        source = utils.template(options.get('src', None))
-        dest = utils.template(options.get('dest', None))
+        source = utils.template(options.get('src', None), inject)
+        dest = utils.template(options.get('dest', None), inject)
         try:
             options['rsync_path'] = inject['ansible_rsync_path']
         except KeyError:
@@ -53,18 +58,24 @@ class ActionModule(object):
             try:
                 delegate = inject['delegate_to']
             except KeyError:
+                pass
+            if not delegate:
                 delegate = 'localhost'
+            inv_hostname = inject['inventory_hostname']
+            if options.get('mode', 'push') == 'pull':
+                (delegate, inv_hostname) = (inv_hostname, delegate)
             source = self._process_origin(delegate, source)
-            inv_hostname = inject['host_variables']['inventory_hostname'
-                    ]
             dest = self._process_origin(inv_hostname, dest)
-            if mode == 'pull':
-                (source, dest) = (dest, source)
         else:
-            source = utils.path_dwim(self.runner.basedir, source)
-            dest = utils.path_dwim(self.runner.basedir, dest)
+			source = self.rsync_path(source)
+			dest = self.rsync_path(dest)
+
         options['src'] = source
         options['dest'] = dest
+        try:
+     		del options['mode']
+        except KeyError:
+			pass
 
         # run the rsync module
 

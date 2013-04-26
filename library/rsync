@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# (c) 2012, Timothy Appnel <tim@appnel.com>
+# (c) 2012-2013, Timothy Appnel <tim@appnel.com>
 #
 # Ansible is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ def main():
             verbosity=dict(default=0),
             tmp_dir=dict(default=None),
             delete=dict(default='no', choices=['yes','no']),
-            private_key=dict(default=None), 
+            identity_key=dict(default=None, aliases=['private_key']), 
             rsync_path=dict(default=None), 
         )
     )
@@ -36,12 +36,12 @@ def main():
     verbosity = module.params['verbosity']
     temp = module.params['tmp_dir']
     delete = module.params['delete']
-    private_key = module.params['private_key']
+    identity_key = module.params['identity_key']
     rsync_path = module.params['rsync_path']
 
-    if not private_key and not '@' in dest and not '@' in source: # sufficient?
+    if not identity_key and not '@' in dest and not '@' in source: # sufficient?
         return module.fail_json(\
-            'A private key is required for remote connections.')
+            'An identity key is required for remote connections.')
     cmd = 'rsync --archive --delay-updates --compress' # rsync param eventually 
     if verbosity:
         cmd = '%s -%s' % (cmd, ('v' * int(verbosity)))
@@ -51,8 +51,8 @@ def main():
         cmd = cmd + ' --temp-dir ' + temp
     if module.boolean(delete):
         cmd = cmd + ' --delete-after'
-    if private_key:
-        cmd = cmd + " --rsh '%s -i %s'" % ('ssh', private_key) # need ssh param
+    if identity_key:
+        cmd = cmd + " --rsh '%s -i %s'" % ('ssh', identity_key) # need ssh param
     if rsync_path:
         cmd = cmd + ' --rsync-path ' + rsync_path
         

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# (c) 2012, Timothy Appnel <tim@appnel.com>
+# (c) 2012-2013, Timothy Appnel <tim@appnel.com>
 #
 # Ansible is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,61 @@
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 
 import subprocess
+
+DOCUMENTATION = '''
+---
+module: synchronize
+short_description: Synchronize one path with another C(rsync) made simple
+description:
+     - This module was designed to make synchronizing file structuures from one place to another using
+	   C(rsync) in your Ansible playbooks quick and easy. Of course you could just use the command action
+	   to call rsync yourself, but you also have to add a fair number of boilerplate options and host 
+	   facts. You still may need to. The synchronize action is meant to do common things with C(rsync) easily. It does not provide access to the full power of rsync.
+options:
+  src:
+    description:
+      - Path on the source machine that will be synchronized to the destination; The path can be
+	    absolute or relative.
+    required: true
+    default: null
+  dest:
+    description:
+      - Path on the destination machine that will be synchronized from the source; The path can be
+	    absolute or relative.
+    required: true
+    default: null
+  mode:
+    description:
+      - Specify the direction of the synchroniztion. In push mode the localhost or delgate is the 
+	    source; In pull mode the inventory hostname in context is the source.	  
+    required: false
+	choices: [ 'push', 'pull' ]
+	default: 'push'
+  verbosity:
+    description:
+      - An integrater controling the amount of information returned during processing. The greater
+	    the value the more information rsync will report back. See the C(-v, --verbose) option of
+		the rsync man page for details. If verbosity is not defined or a value of 0 is assumed, the
+		C(--quiet) option is passed and information is supressed.
+    required: false
+    default: 0
+  delete:
+    description:
+      - Delete files that don't exist (after transfer, not before) in C(src) path.
+    choices: [ 'yes', 'no' ]
+    default: 'no'
+    required: false
+examples:
+   - code: 'synchronize: src=some/relative/path dest=/some/absolute/path'
+     description: 'Synchronize the src on the localhost or delegate to the dest on the host in context.'
+   - code: 'synchronize: src=some/relative/path dest=/some/absolute/path mode=pull'
+     description: 'Synchronize the src on the host in context to the dest on the localhost or delegate.'
+   - code: 'synchronize: src=some/relative/path dest=/some/absolute/path delete=yes'
+     description: 'Synchronize and delete files in dest not found in src.'
+   - code: 'synchronize: src=some/relative/path dest=/some/absolute/path verbosity=1'
+     description: 'Synchronize and return verbose information from the rsync transfer.'	 
+author: Timothy Appnel
+'''
 
 def main():
     module = AnsibleModule(
@@ -70,5 +125,4 @@ def main():
 # include magic from lib/ansible/module_common.py
 #<<INCLUDE_ANSIBLE_MODULE_COMMON>>
 main()
-
 

@@ -21,68 +21,84 @@ import os.path
 from ansible import utils
 from ansible.runner.return_data import ReturnData
 
-
 class ActionModule(object):
 
     def __init__(self, runner):
         self.runner = runner
 
-    def _process_origin(self, host, path):
-        if not host in ['127.0.0.1', 'localhost']:
-            return '%s@%s:%s' % (self.runner.remote_user, host, path)
-        else:
-            return self.rsync_path(path)
+    def _process_origin(
+        self,
+        host,
+        path,
+        user,
+        ):
 
-    def rsync_path(self, path):
-        return os.path.relpath(os.path.expanduser(path),
-                               os.path.expanduser('~'))
+        if not host in ['127.0.0.1', 'localhost']:
+            return '%s@%s:%s' % (user, host, path)
+        else:
+            return path
 
     def run(
         self,
         conn,
         tmp,
         module_name,
+        module_args,
         inject,
+        complex_args=None,
+        **kwargs
         ):
         ''' generates params and passes them on to the rsync module '''
 
-        options = utils.parse_kv(self.runner.module_args)
-        source = utils.template(options.get('src', None), inject)
-        dest = utils.template(options.get('dest', None), inject)
-        try:
-            options['rsync_path'] = inject['ansible_rsync_path']
-        except KeyError:
-            pass
-        if not self.runner.transport == 'local':
-            options['private_key'] = self.runner.private_key_file
-            options['tmp_dir'] = tmp
-            try:
-                delegate = inject['delegate_to']
-            except KeyError:
-                pass
-            if not delegate:
-                delegate = 'localhost'
-            inv_hostname = inject['inventory_hostname']
-            if options.get('mode', 'push') == 'pull':
-                (delegate, inv_hostname) = (inv_hostname, delegate)
-            source = self._process_origin(delegate, source)
-            dest = self._process_origin(inv_hostname, dest)
-        else:
-            source = self.rsync_path(source)
-            dest = self.rsync_path(dest)
+        # load up options
 
-        options['src'] = source
+        options = {}
+        if complex_args:
+            options.update(complex_args)
+        options.update(utils.parse_kv(module_args))
+        src = options.get('src', None)
+        dest = options.get('dest', None)
+
+        # broken if delegate_to used -- probably going to need to go out and get it
+        # try:
+        #   options['rsync_path'] = inject['ansible_rsync_path']
+        # except KeyError:
+        #   pass
+        # options['tmp_dir'] = tmp
+
+        delegate = inject.get('delegate_to', inject['inventory_hostname'
+                              ])
+        if delegate in ['localhost', '127.0.0.1']:
+            dest_host = '127.0.0.1'
+        else:
+            dest_host = inject.get('ansible_ssh_host', delegate)
+        src_host = '127.0.0.1'  # the localhost is the inventory_hostname when transport is not local
+        if options.get('mode', 'push') == 'pull':
+            (dest_host, src_host) = (src_host, dest_host)
+        if not dest_host is src_host:
+            user = inject.get('ansible_ssh_user',
+                              self.runner.remote_user)
+
+            # should we support ssh_password and ssh_port here??
+
+            options['private_key'] = \
+                inject.get('ansible_ssh_private_key_file',
+                           self.runner.private_key_file)
+            src = self._process_origin(src_host, src, user)
+            dest = self._process_origin(dest_host, dest, user)
+
+        options['src'] = src
         options['dest'] = dest
         try:
             del options['mode']
         except KeyError:
             pass
 
-        # run the rsync module
+        # run the synchronize module
 
         self.runner.module_args = ' '.join(['%s=%s' % (k, v) for (k,
                 v) in options.items()])
-        return self.runner._execute_module(conn, tmp, 'rsync',
+        return self.runner._execute_module(conn, tmp, 'synchronize',
                 self.runner.module_args, inject=inject)
 
 

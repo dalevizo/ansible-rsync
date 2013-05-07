@@ -27,9 +27,14 @@ class ActionModule(object):
     def __init__(self, runner):
         self.runner = runner
 
-    def _process_origin(self, host, path):
+    def _process_origin(
+        self,
+        host,
+        path,
+        user,
+        ):
         if not host in ['127.0.0.1', 'localhost']:
-            return '%s@%s:%s' % (self.runner.remote_user, host, path)
+            return '%s@%s:%s' % (user, host, path)
         else:
             return self.rsync_path(path)
 
@@ -42,19 +47,30 @@ class ActionModule(object):
         conn,
         tmp,
         module_name,
+        module_args,
         inject,
+        complex_args=None,
+        **kwargs
         ):
         ''' generates params and passes them on to the rsync module '''
 
-        options = utils.parse_kv(self.runner.module_args)
-        source = utils.template(options.get('src', None), inject)
-        dest = utils.template(options.get('dest', None), inject)
+        # load up options
+
+        options = {}
+        if complex_args:
+            options.update(complex_args)
+        options.update(utils.parse_kv(module_args))
+        source = options.get('src', None)
+        dest = options.get('dest', None)
+
         try:
             options['rsync_path'] = inject['ansible_rsync_path']
         except KeyError:
             pass
         if not self.runner.transport == 'local':
-            options['private_key'] = self.runner.private_key_file
+            options['private_key'] = \
+                inject.get('ansible_ssh_private_key_file',
+                           self.runner.private_key_file)
             options['tmp_dir'] = tmp
             try:
                 delegate = inject['delegate_to']
@@ -62,11 +78,14 @@ class ActionModule(object):
                 pass
             if not delegate:
                 delegate = 'localhost'
-            inv_hostname = inject['inventory_hostname']
+            inv_hostname = inject.get('ansible_ssh_host',
+                    inject['inventory_hostname'])
             if options.get('mode', 'push') == 'pull':
                 (delegate, inv_hostname) = (inv_hostname, delegate)
-            source = self._process_origin(delegate, source)
-            dest = self._process_origin(inv_hostname, dest)
+            actual_user = inject.get('ansible_ssh_user',
+                    self.runner.remote_user)
+            source = self._process_origin(delegate, source, actual_user)
+            dest = self._process_origin(inv_hostname, dest, actual_user)
         else:
             source = self.rsync_path(source)
             dest = self.rsync_path(dest)
@@ -82,7 +101,7 @@ class ActionModule(object):
 
         self.runner.module_args = ' '.join(['%s=%s' % (k, v) for (k,
                 v) in options.items()])
-        return self.runner._execute_module(conn, tmp, 'rsync',
+        return self.runner._execute_module(conn, tmp, 'synchronize',
                 self.runner.module_args, inject=inject)
 
 

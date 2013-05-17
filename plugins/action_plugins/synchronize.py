@@ -21,7 +21,6 @@ import os.path
 from ansible import utils
 from ansible.runner.return_data import ReturnData
 
-
 class ActionModule(object):
 
     def __init__(self, runner):
@@ -33,14 +32,11 @@ class ActionModule(object):
         path,
         user,
         ):
+
         if not host in ['127.0.0.1', 'localhost']:
             return '%s@%s:%s' % (user, host, path)
         else:
-            return self.rsync_path(path)
-
-    def rsync_path(self, path):
-        return os.path.relpath(os.path.expanduser(path),
-                               os.path.expanduser('~'))
+            return path
 
     def run(
         self,
@@ -60,44 +56,46 @@ class ActionModule(object):
         if complex_args:
             options.update(complex_args)
         options.update(utils.parse_kv(module_args))
-        source = options.get('src', None)
+
+        src = options.get('src', None)
         dest = options.get('dest', None)
 
-        try:
-            options['rsync_path'] = inject['ansible_rsync_path']
-        except KeyError:
-            pass
-        if not self.runner.transport == 'local':
+        # broken if delegate_to used -- probably going to need to go out and get it
+        # try:
+        #   options['rsync_path'] = inject['ansible_rsync_path']
+        # except KeyError:
+        #   pass
+        # options['tmp_dir'] = tmp
+
+        delegate = inject.get('delegate_to', inject['inventory_hostname'
+                              ])
+        if delegate in ['localhost', '127.0.0.1']:
+            dest_host = '127.0.0.1'
+        else:
+            dest_host = inject.get('ansible_ssh_host', delegate)
+        src_host = '127.0.0.1'  # the localhost is the inventory_hostname when transport is not local
+        if options.get('mode', 'push') == 'pull':
+            (dest_host, src_host) = (src_host, dest_host)
+        if not dest_host is src_host:
+            user = inject.get('ansible_ssh_user',
+                              self.runner.remote_user)
+
+            # should we support ssh_password and ssh_port here??
+
             options['private_key'] = \
                 inject.get('ansible_ssh_private_key_file',
                            self.runner.private_key_file)
-            options['tmp_dir'] = tmp
-            try:
-                delegate = inject['delegate_to']
-            except KeyError:
-                pass
-            if not delegate:
-                delegate = 'localhost'
-            inv_hostname = inject.get('ansible_ssh_host',
-                    inject['inventory_hostname'])
-            if options.get('mode', 'push') == 'pull':
-                (delegate, inv_hostname) = (inv_hostname, delegate)
-            actual_user = inject.get('ansible_ssh_user',
-                    self.runner.remote_user)
-            source = self._process_origin(delegate, source, actual_user)
-            dest = self._process_origin(inv_hostname, dest, actual_user)
-        else:
-            source = self.rsync_path(source)
-            dest = self.rsync_path(dest)
+            src = self._process_origin(src_host, src, user)
+            dest = self._process_origin(dest_host, dest, user)
 
-        options['src'] = source
+        options['src'] = src
         options['dest'] = dest
         try:
             del options['mode']
         except KeyError:
             pass
 
-        # run the rsync module
+        # run the synchronize module
 
         self.runner.module_args = ' '.join(['%s=%s' % (k, v) for (k,
                 v) in options.items()])

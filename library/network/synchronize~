@@ -21,9 +21,15 @@ import subprocess
 DOCUMENTATION = '''
 ---
 module: synchronize
+<<<<<<< HEAD
+short_description: An Ansible action plugin to make synchronizing a file path from one place to another using rsync in your playbooks quick and easy.  
+description:
+    - This module was designed to make synchronizing a file path from one place to another using C(rsync) in your Ansible playbooks quick and easy. Of course you could just use the command action to call rsync yourself, but you also have to add a fair number of boilerplate options and host facts. You still may need to. The synchronize action is meant to do common things with C(rsync) easily. It does not provide access to the full power of rsync.
+=======
 short_description: An Ansible action plugin using rsync to make synchronizing a file paths in your playbooks quick and easy.
 description:
     - An Ansible action plugin using rsync to make synchronizing a file paths in your playbooks quick and easy. Of course you could just use the command action to call rsync yourself, but you also have to add a fair number of boilerplate options and host facts. You still may need to. The synchronize action is meant to do common things with C(rsync) easily. It does not provide access to the full power of rsync.
+>>>>>>> Removed old syncronize module. Minor doc enhancements.
 options:
   src:
     description:

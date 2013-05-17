@@ -4,7 +4,7 @@ ansible-rsync
 ## synchronize
 
 
-An Ansible action plugin using `rsync` to make synchronizing a file paths in your playbooks quick and easy. Of course you could just use the command action to call rsync yourself, but you also have to add a fair number of boilerplate options and host facts. You still may need to. The synchronize action is meant to do common things with `rsync` easily. It does not provide access to the full power of rsync. 
+An Ansible action plugin based `rsync` to make synchronizing a file paths in your playbooks quick and easy. Of course you could just use the command action to call rsync yourself, but you also have to add a fair number of boilerplate options and host facts. You still may need to. The synchronize action is meant to do common things with `rsync` easily. It does not provide access to the full power of rsync. 
 
 <table>
 <tr>

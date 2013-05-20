@@ -1,0 +1,83 @@
+--- 
+- 
+  hosts: remote_host
+  gather_facts: no 
+  name: "Testing synchronize"
+  vars:
+     start_time: "{{ lookup('pipe','date') }}"
+     test_files:
+       - test1
+       - test2
+       - test3
+  pre_tasks:
+    -
+      local_action: file path="/tmp/ansible-rsync-test" state=absent
+      name: "cleanup failed tests"
+    -
+      local_action: file path="/tmp/ansible-rsync-test/{{ item }}" state=directory
+      name: "create tmp directories for test"
+      with_items:
+        - "src"
+        - "dest"
+        - "remote" 
+    -
+      local_action: shell echo '{{ start_time }}' > /tmp/ansible-rsync-test/src/{{ item }}.txt
+      name: "create test files for syncing"
+      with_items: test_files
+  tasks: 
+    - 
+      local_action: synchronize src="/tmp/ansible-rsync-test/src/" dest="/tmp/ansible-rsync-test/dest"
+      name: "local-to-local sync test"
+      # delegate_to: 127.0.0.1 
+    - 
+      local_action: synchronize src="/tmp/ansible-rsync-test/src/" dest="/tmp/ansible-rsync-test/dest" verbosity=1
+      name: "verbosity option w/ local-to-local sync test"
+      # delegate_to: 127.0.0.1 
+    -
+      local_action: shell echo '{{ start_time }}' > /tmp/ansible-rsync-test/dest/DELETE_ME.txt
+      name: "create test files to delete"
+    - 
+      local_action: synchronize src="/tmp/ansible-rsync-test/src/" dest="/tmp/ansible-rsync-test/dest" delete=yes verbosity=1
+      name: "delete and verbosity option w/ local-to-local sync test"
+      # delegate_to: 127.0.0.1 
+    -
+      action: file path="/tmp/ansible-rsync-test" state=absent
+      name: "cleanup failed tests on remote"
+    -
+      action: file path="/tmp/ansible-rsync-test/{{ item }}" state=directory
+      name: "create tmp directories for remote test"
+      with_items:
+        - "src"
+        - "dest" 
+        - "delegate" 
+    - 
+      action: synchronize src="/tmp/ansible-rsync-test/src/" dest="/tmp/ansible-rsync-test/src"
+      name: "local-to-remote sync test"
+    - 
+      action: synchronize src="/tmp/ansible-rsync-test/src/" dest="/tmp/ansible-rsync-test/dest"
+      name: "remote-to-remote (local after module transferred) sync test"
+      delegate_to: "{{ inventory_hostname }}"
+    - 
+      action: synchronize mode=pull src="/tmp/ansible-rsync-test/src/" dest="/tmp/ansible-rsync-test/remote"
+      name: "remote-to-local sync test"
+    -
+      action: file path="/tmp/ansible-rsync-test" state=absent
+      name: "cleanup failed tests on delegate"
+      delegate_to: delegate_host 
+    - 
+      action: synchronize mode=pull src="/tmp/ansible-rsync-test/src" dest="/tmp/ansible-rsync-test"
+      name: "remote-to-delegate sync test"
+      delegate_to: delegate_host 
+    - 
+      action: synchronize src="/tmp/ansible-rsync-test/" dest="/tmp/ansible-rsync-test/delegate"
+      name: "delegate-to-remote sync test"
+      delegate_to: delegate_host
+- 
+  hosts: all
+  gather_facts: no 
+  name: "Clean up test paths"
+  tasks:
+    -
+     action: file path=/tmp/ansible-rsync-test state=absent
+     name: "cleanup test paths"
+

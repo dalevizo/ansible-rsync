@@ -60,11 +60,10 @@ class ActionModule(object):
         src = options.get('src', None)
         dest = options.get('dest', None)
 
-        # broken if delegate_to used -- probably going to need to go out and get it
-        # try:
-        #   options['rsync_path'] = inject['ansible_rsync_path']
-        # except KeyError:
-        #   pass
+        try:
+          options['local_rsync_path'] = inject['ansible_rsync_path']
+        except KeyError:
+          pass
         # options['tmp_dir'] = tmp
 
         delegate = inject.get('delegate_to', inject['inventory_hostname'

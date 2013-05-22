@@ -18,12 +18,13 @@
 
 import subprocess
 
-DOCUMENTATION = '''
+DOCUMENTATION = \
+    '''
 ---
 module: synchronize
 short_description: An Ansible action plugin using rsync to make synchronizing a file paths in your playbooks quick and easy.
 description:
-    - An Ansible action plugin using rsync to make synchronizing a file paths in your playbooks quick and easy. Of course you could just use the command action to call rsync yourself, but you also have to add a fair number of boilerplate options and host facts. You still may need to. The synchronize action is meant to do common things with C(rsync) easily. It does not provide access to the full power of rsync.
+    - An Ansible action plugin using rsync to make synchronizing a file paths in your playbooks quick and easy. Of course you could just use the command action to call rsync yourself, but you also have to add a fair number of boilerplate options and host facts. You still may need to call rsync directly via C(command) or C(shell). The synchronize action is meant to do common things with C(rsync) easily. It does not provide access to the full power of rsync.
 options:
   src:
     description:
@@ -83,15 +84,17 @@ def main():
     source = module.params['src']
     dest = module.params['dest']
     verbosity = module.params['verbosity']
-    temp = module.params['tmp_dir']
     delete = module.params['delete']
     private_key = module.params['private_key']
     rsync_path = module.params['rsync_path']
+    rsync = module.params.get('local_rsync_path', 'rsync')
+    temp = os.path.dirname(os.path.realpath(__file__))
 
     if not private_key and ('@' in dest or '@' in source):
-        return module.fail_json(msg='A private key is required for remote connections.')
+        return module.fail_json(msg='A private key is required for remote connections.'
+                                )
 
-    cmd = 'rsync --archive --delay-updates --compress'  # rsync param eventually
+    cmd = '%s --archive --delay-updates --compress' % rsync
     if verbosity:
         cmd = '%s -%s' % (cmd, 'v' * int(verbosity))
     else:

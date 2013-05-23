@@ -94,7 +94,7 @@ def main():
         return module.fail_json(msg='A private key is required for remote connections.'
                                 )
 
-    cmd = '%s --archive --delay-updates --compress' % rsync
+    cmd = '%s --archive --delay-updates --compress --stats' % rsync
     if verbosity:
         cmd = '%s -%s' % (cmd, 'v' * int(verbosity))
     else:
@@ -117,10 +117,12 @@ def main():
     if cmd.returncode:
         return module.fail_json(msg=err, rc=cmd.returncode, cmd=cmdstr)
     else:
-        return module.exit_json(changed=True, msg=out,
-                                rc=cmd.returncode, cmd=cmdstr)
-
-
+    	if not 'deleting' in out and 'transferred: 0' in out:
+                return module.exit_json(changed=False, msg=filter(None,out.split('\n')),
+                                        rc=cmd.returncode, cmd=cmdstr)
+        else:
+                return module.exit_json(changed=True, msg=filter(None,out.split('\n')),
+                                        rc=cmd.returncode, cmd=cmdstr)
 # include magic from lib/ansible/module_common.py
 #<<INCLUDE_ANSIBLE_MODULE_COMMON>>
 
